@@ -1,0 +1,97 @@
+# ==============================
+# IMPORTAÇÕES
+# ==============================
+
+from flask import Flask, request, jsonify
+import requests
+import json
+import os
+
+# ==============================
+# CONFIGURAÇÕES
+# ==============================
+
+# 🔐 Pega o TOKEN das variáveis de ambiente do Render
+TOKEN = os.getenv("TOKEN")
+
+# Seu ID do Telegram (coloque o seu número aqui)
+ADMIN_ID = 123456789
+
+TELEGRAM_URL = f"https://api.telegram.org/bot{TOKEN}"
+
+app = Flask(__name__)
+
+# ==============================
+# SALVAR DADOS
+# ==============================
+
+def salvar_dados(cidade, data):
+    dados = {
+        "cidade": cidade,
+        "data": data
+    }
+
+    with open("dados.json", "w", encoding="utf-8") as f:
+        json.dump(dados, f, ensure_ascii=False, indent=4)
+
+# ==============================
+# ROTA PARA O SITE
+# ==============================
+
+@app.route("/dados", methods=["GET"])
+def retornar_dados():
+
+    if not os.path.exists("dados.json"):
+        return jsonify({"cidade": "", "data": ""})
+
+    with open("dados.json", "r", encoding="utf-8") as f:
+        dados = json.load(f)
+
+    return jsonify(dados)
+
+# ==============================
+# WEBHOOK DO TELEGRAM
+# ==============================
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+
+    dados_recebidos = request.get_json()
+
+    if "message" in dados_recebidos:
+
+        mensagem = dados_recebidos["message"]
+        texto = mensagem.get("text", "")
+        usuario_id = mensagem["from"]["id"]
+        chat_id = mensagem["chat"]["id"]
+
+        if usuario_id != ADMIN_ID:
+            return "Não autorizado", 403
+
+        if texto.startswith("/atualizar"):
+
+            partes = texto.split()
+
+            if len(partes) == 3:
+                cidade = partes[1]
+                data = partes[2]
+
+                salvar_dados(cidade, data)
+
+                requests.post(
+                    f"{TELEGRAM_URL}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": "Atualizado com sucesso ✅"
+                    }
+                )
+            else:
+                requests.post(
+                    f"{TELEGRAM_URL}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": "Use: /atualizar Cidade Data"
+                    }
+                )
+
+    return "OK", 200
