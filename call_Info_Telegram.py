@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 import requests
 import json
 import os
-from flask_cors import CORS  # <- CORS
+from flask_cors import CORS  # CORS
 
 # ==============================
 # CONFIGURAÇÕES
@@ -21,7 +21,7 @@ ADMIN_ID = 358280866
 TELEGRAM_URL = f"https://api.telegram.org/bot{TOKEN}"
 
 app = Flask(__name__)
-CORS(app, resources={r"/dados": {"origins": "*"}})  # <- Permite qualquer site acessar /dados
+CORS(app, resources={r"/dados": {"origins": "*"}})  # permite qualquer site acessar /dados
 
 # ==============================
 # SALVAR DADOS
@@ -93,3 +93,11 @@ def webhook():
                 )
 
     return "OK", 200
+
+# ==============================
+# RODAR APLICAÇÃO
+# ==============================
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # Render define a porta
+    app.run(host="0.0.0.0", port=port)
