@@ -7,6 +7,7 @@ import requests
 import json
 import os
 from flask_cors import CORS  # CORS
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # ==============================
 # CONFIGURAÇÕES
@@ -58,6 +59,7 @@ def retornar_dados():
 def webhook():
     dados_recebidos = request.get_json()
 
+    # --- MENSAGENS NORMAIS ---
     if "message" in dados_recebidos:
         mensagem = dados_recebidos["message"]
         texto = mensagem.get("text", "")
@@ -67,30 +69,63 @@ def webhook():
         if usuario_id != ADMIN_ID:
             return "Não autorizado", 403
 
+        # botão /start
+        if texto.startswith("/start"):
+            keyboard = [
+                [InlineKeyboardButton("📍Update Local", callback_data="update_local")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+
+            requests.post(
+                f"{TELEGRAM_URL}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": "Clique no botão para atualizar Cidade e Data:",
+                    "reply_markup": reply_markup
+                }
+            )
+
+        # comando /atualizar
         if texto.startswith("/atualizar"):
             partes = texto.split()
-
             if len(partes) == 3:
                 cidade = partes[1]
                 data = partes[2]
-
                 salvar_dados(cidade, data)
-
                 requests.post(
                     f"{TELEGRAM_URL}/sendMessage",
-                    json={
-                        "chat_id": chat_id,
-                        "text": "Atualizado com sucesso ✅"
-                    }
+                    json={"chat_id": chat_id, "text": "Atualizado com sucesso ✅"}
                 )
             else:
                 requests.post(
                     f"{TELEGRAM_URL}/sendMessage",
-                    json={
-                        "chat_id": chat_id,
-                        "text": "Use: /atualizar Cidade Data"
-                    }
+                    json={"chat_id": chat_id, "text": "Use: /atualizar Cidade Data"}
                 )
+
+    # --- CLIQUES DE BOTÃO ---
+    if "callback_query" in dados_recebidos:
+        query = dados_recebidos["callback_query"]
+        user_id = query["from"]["id"]
+        data_cb = query["data"]
+        chat_id_cb = query["message"]["chat"]["id"]
+
+        if user_id != ADMIN_ID:
+            return "Não autorizado", 403
+
+        if data_cb == "update_local":
+            # pede cidade e data
+            requests.post(
+                f"{TELEGRAM_URL}/sendMessage",
+                json={
+                    "chat_id": chat_id_cb,
+                    "text": "Digite no chat: Cidade Data\nExemplo: Franca-SP 03/04/2026"
+                }
+            )
+            # responde no botão
+            requests.post(
+                f"{TELEGRAM_URL}/answerCallbackQuery",
+                json={"callback_query_id": query["id"], "text": "Pronto, digite a Cidade e Data 👆"}
+            )
 
     return "OK", 200
 
