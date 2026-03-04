@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 import requests
 import json
 import os
-from flask_cors import CORS  # <- ADICIONE ESSA LINHA
+from flask_cors import CORS  # <- CORS
 
 # ==============================
 # CONFIGURAÇÕES
@@ -15,13 +15,13 @@ from flask_cors import CORS  # <- ADICIONE ESSA LINHA
 # 🔐 Pega o TOKEN das variáveis de ambiente do Render
 TOKEN = os.getenv("TOKEN")
 
-# Seu ID do Telegram (coloque o seu número aqui)
+# Seu ID do Telegram
 ADMIN_ID = 358280866
 
 TELEGRAM_URL = f"https://api.telegram.org/bot{TOKEN}"
 
 app = Flask(__name__)
-CORS(app)  # <- E ESSA LINHA, permite que o Elementor leia o JSON
+CORS(app, resources={r"/dados": {"origins": "*"}})  # <- Permite qualquer site acessar /dados
 
 # ==============================
 # SALVAR DADOS
@@ -42,7 +42,6 @@ def salvar_dados(cidade, data):
 
 @app.route("/dados", methods=["GET"])
 def retornar_dados():
-
     if not os.path.exists("dados.json"):
         return jsonify({"cidade": "", "data": ""})
 
@@ -57,11 +56,9 @@ def retornar_dados():
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
-
     dados_recebidos = request.get_json()
 
     if "message" in dados_recebidos:
-
         mensagem = dados_recebidos["message"]
         texto = mensagem.get("text", "")
         usuario_id = mensagem["from"]["id"]
@@ -71,7 +68,6 @@ def webhook():
             return "Não autorizado", 403
 
         if texto.startswith("/atualizar"):
-
             partes = texto.split()
 
             if len(partes) == 3:
