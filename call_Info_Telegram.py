@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify
 import requests
 import json
 import os
+from flask_cors import CORS  # <- ADICIONE ESSA LINHA
 
 # ==============================
 # CONFIGURAÇÕES
@@ -20,6 +21,7 @@ ADMIN_ID = 358280866
 TELEGRAM_URL = f"https://api.telegram.org/bot{TOKEN}"
 
 app = Flask(__name__)
+CORS(app)  # <- E ESSA LINHA, permite que o Elementor leia o JSON
 
 # ==============================
 # SALVAR DADOS
@@ -93,6 +95,5 @@ def webhook():
                         "text": "Use: /atualizar Cidade Data"
                     }
                 )
-
 
     return "OK", 200
