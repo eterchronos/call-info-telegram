@@ -15,7 +15,7 @@ import os
 TOKEN = os.getenv("TOKEN")
 
 # Seu ID do Telegram (coloque o seu número aqui)
-ADMIN_ID = 123456789
+ADMIN_ID = 358280866
 
 TELEGRAM_URL = f"https://api.telegram.org/bot{TOKEN}"
 
@@ -93,5 +93,6 @@ def webhook():
                         "text": "Use: /atualizar Cidade Data"
                     }
                 )
+
 
     return "OK", 200
