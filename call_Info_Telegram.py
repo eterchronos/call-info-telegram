@@ -6,60 +6,50 @@ from flask import Flask, request, jsonify
 import requests
 import json
 import os
-from flask_cors import CORS  # CORS
+from flask_cors import CORS
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # ==============================
 # CONFIGURAÇÕES
 # ==============================
 
-# 🔐 Pega o TOKEN das variáveis de ambiente do Render
 TOKEN = os.getenv("TOKEN")
-
-# Seu ID do Telegram
 ADMIN_ID = 358280866
-
 TELEGRAM_URL = f"https://api.telegram.org/bot{TOKEN}"
 
 app = Flask(__name__)
-CORS(app, resources={r"/dados": {"origins": "*"}})  # permite qualquer site acessar /dados
+CORS(app, resources={r"/dados": {"origins": "*"}})
 
 # ==============================
 # SALVAR DADOS
 # ==============================
 
 def salvar_dados(cidade, data):
-    dados = {
-        "cidade": cidade,
-        "data": data
-    }
-
+    dados = {"cidade": cidade, "data": data}
     with open("dados.json", "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=4)
 
 # ==============================
-# ROTA PARA O SITE
+# ROTA JSON
 # ==============================
 
 @app.route("/dados", methods=["GET"])
 def retornar_dados():
     if not os.path.exists("dados.json"):
         return jsonify({"cidade": "", "data": ""})
-
     with open("dados.json", "r", encoding="utf-8") as f:
         dados = json.load(f)
-
     return jsonify(dados)
 
 # ==============================
-# WEBHOOK DO TELEGRAM
+# WEBHOOK TELEGRAM
 # ==============================
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
     dados_recebidos = request.get_json()
 
-    # --- MENSAGENS NORMAIS ---
+    # --- MENSAGENS ---
     if "message" in dados_recebidos:
         mensagem = dados_recebidos["message"]
         texto = mensagem.get("text", "")
@@ -69,23 +59,23 @@ def webhook():
         if usuario_id != ADMIN_ID:
             return "Não autorizado", 403
 
-        # botão /start
+        # /start envia botão
         if texto.startswith("/start"):
             keyboard = [
                 [InlineKeyboardButton("📍Update Local", callback_data="update_local")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-
             requests.post(
                 f"{TELEGRAM_URL}/sendMessage",
                 json={
                     "chat_id": chat_id,
-                    "text": "Clique no botão para atualizar Cidade e Data:",
+                    "text": "Clique no botão abaixo para atualizar Cidade e Data:\n\n"
+                            "Depois digite no chat: Cidade Data\nEx: Franca-SP 03/04/2026",
                     "reply_markup": reply_markup
                 }
             )
 
-        # comando /atualizar
+        # /atualizar manual
         if texto.startswith("/atualizar"):
             partes = texto.split()
             if len(partes) == 3:
@@ -94,15 +84,15 @@ def webhook():
                 salvar_dados(cidade, data)
                 requests.post(
                     f"{TELEGRAM_URL}/sendMessage",
-                    json={"chat_id": chat_id, "text": "Atualizado com sucesso ✅"}
+                    json={"chat_id": chat_id, "text": "✅ Atualizado com sucesso!"}
                 )
             else:
                 requests.post(
                     f"{TELEGRAM_URL}/sendMessage",
-                    json={"chat_id": chat_id, "text": "Use: /atualizar Cidade Data"}
+                    json={"chat_id": chat_id, "text": "⚠️ Use: /atualizar Cidade Data"}
                 )
 
-    # --- CLIQUES DE BOTÃO ---
+    # --- CLIQUE BOTÃO ---
     if "callback_query" in dados_recebidos:
         query = dados_recebidos["callback_query"]
         user_id = query["from"]["id"]
@@ -113,18 +103,18 @@ def webhook():
             return "Não autorizado", 403
 
         if data_cb == "update_local":
-            # pede cidade e data
+            # mensagem de instrução detalhada
             requests.post(
                 f"{TELEGRAM_URL}/sendMessage",
                 json={
                     "chat_id": chat_id_cb,
-                    "text": "Digite no chat: Cidade Data\nExemplo: Franca-SP 03/04/2026"
+                    "text": "📌 Para atualizar, digite no chat: Cidade Data\nExemplo:\nFranca-SP 03/04/2026"
                 }
             )
-            # responde no botão
+            # feedback imediato no botão
             requests.post(
                 f"{TELEGRAM_URL}/answerCallbackQuery",
-                json={"callback_query_id": query["id"], "text": "Pronto, digite a Cidade e Data 👆"}
+                json={"callback_query_id": query["id"], "text": "Pronto! Digite a Cidade e Data 👆"}
             )
 
     return "OK", 200
@@ -134,5 +124,5 @@ def webhook():
 # ==============================
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render define a porta
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
